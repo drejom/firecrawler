@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "NODE_NO_WARNINGS=1 node server.js",
-    "dev": "NODE_NO_WARNINGS=1 nodemon server.js"
+    "dev": "NODE_NO_WARNINGS=1 nodemon server.js",
+    "bump": "npx -y standard-version --skip.tag && git add . && git commit -m 'chore: bump version' && git push"
   },
   "dependencies": {
     "cors": "^2.8.5",
