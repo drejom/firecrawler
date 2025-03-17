@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firecrawler</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%235755d9%22/><path d=%22M30 30 L70 30 L70 70 L30 70 Z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%225%22/></svg>" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/css/milligram.min.css">
+    <link rel="stylesheet" href="assets/css/github.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Firecrawler</div>
+        <div class="api-status">Firecrawl API: <span id="api-url">Loading...</span></div>
+    </div>
+
+    <div class="mode-selector">
+        <button class="mode-button active" data-mode="scrape">Scrape</button>
+        <button class="mode-button" data-mode="crawl">Crawl</button>
+        <button class="mode-button" data-mode="extract">Extract</button>
+    </div>
+
+    <div class="input-panel">
+        <div class="url-input-container">
+            <div class="url-input">
+                <label for="url">URL</label>
+                <input type="text" id="url" placeholder="https://smcleod.net">
+            </div>
+            <button id="submit-button" class="button button-primary">Run</button>
+        </div>
+
+        <div class="options-section">
+            <!-- Scrape Mode Options -->
+            <div class="mode-options scrape-options">
+                <div class="row">
+                    <div class="column">
+                        <label>Output Formats</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="format" value="markdown" checked> Markdown</label>
+                            <label><input type="checkbox" name="format" value="html"> HTML</label>
+                            <label><input type="checkbox" name="format" value="screenshot"> Screenshot</label>
+                            <label><input type="checkbox" name="format" value="links"> Links</label>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <label>Page Options</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="onlyMainContent" value="true" checked> Only Main Content</label>
+                            <label><input type="checkbox" name="removeBase64Images" value="true"> Remove Base64 Images</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="column">
+                        <label for="waitFor">Wait For (ms)</label>
+                        <input type="number" id="waitFor" placeholder="2000" value="2000">
+                    </div>
+                    <div class="column">
+                        <label for="timeout">Timeout (ms)</label>
+                        <input type="number" id="timeout" placeholder="30000" value="30000">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Crawl Mode Options -->
+            <div class="mode-options crawl-options hidden">
+                <div class="row">
+                    <div class="column">
+                        <label for="maxDepth">Max Depth</label>
+                        <input type="number" id="maxDepth" placeholder="2" value="2">
+                    </div>
+                    <div class="column">
+                        <label for="limit">Page Limit</label>
+                        <input type="number" id="limit" placeholder="10" value="10">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="column">
+                        <label>Crawl Options</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="ignoreSitemap" value="true"> Ignore Sitemap</label>
+                            <label><input type="checkbox" name="allowExternalLinks" value="true"> Allow External Links</label>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <label>Output Formats</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="crawlFormat" value="markdown" checked> Markdown</label>
+                            <label><input type="checkbox" name="crawlFormat" value="html"> HTML</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="column">
+                        <label for="includePaths">Include Paths (comma separated)</label>
+                        <input type="text" id="includePaths" placeholder="blog,docs">
+                    </div>
+                    <div class="column">
+                        <label for="excludePaths">Exclude Paths (comma separated)</label>
+                        <input type="text" id="excludePaths" placeholder="admin,login">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extract Mode Options -->
+            <div class="mode-options extract-options hidden">
+                <div class="row">
+                    <div class="column">
+                        <label for="extractPrompt">Extraction Prompt</label>
+                        <textarea id="extractPrompt" placeholder="Extract the main content, title, and author from this page."></textarea>
+                        <p class="hint">Extraction will use the LLM configured on the Firecrawl instance to extract content from the page.</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="column">
+                        <label for="extractSchema">JSON Schema (Optional)</label>
+                        <textarea id="extractSchema" placeholder='{"type":"object","properties":{"title":{"type":"string"},"content":{"type":"string"},"author":{"type":"string"}}}'></textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="column">
+                        <label for="waitFor">Wait For (ms)</label>
+                        <input type="number" id="waitFor" placeholder="2000" value="2000">
+                        <p class="hint">Time to wait for dynamic content to load before extraction.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="results-panel hidden" id="results-panel">
+        <h3>Results</h3>
+        <div class="error-message hidden" id="error-message"></div>
+
+        <div class="crawl-status hidden" id="crawl-status">
+            <div>Status: <span id="status-text">Processing</span></div>
+            <div>Progress: <span id="progress-text">0/0</span></div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-bar"></div>
+            </div>
+        </div>
+
+        <div class="results-tabs">
+            <div class="tab active" data-tab="markdown">Markdown</div>
+            <div class="tab" data-tab="json">Raw JSON</div>
+            <div class="tab" data-tab="screenshot">Screenshot</div>
+        </div>
+
+        <div class="tab-content active" id="markdown-tab">
+            <div class="markdown-preview" id="markdown-preview"></div>
+        </div>
+
+        <div class="tab-content" id="json-tab">
+            <div class="json-preview" id="json-preview"></div>
+        </div>
+
+        <div class="tab-content" id="screenshot-tab">
+            <div class="screenshot-preview" id="screenshot-preview"></div>
+        </div>
+
+        <div class="loading hidden" id="loading">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="column">
+                    <p>Firecrawler - A lightweight frontend for self-hosted Firecrawl API instances</p>
+                </div>
+                <div class="column">
+                    <p class="text-right">
+                        <a href="https://docs.firecrawl.dev/introduction" target="_blank">API Documentation</a> |
+                        <a href="https://github.com/sammcj/firecrawler" target="_blank">GitHub</a>
+                        <a href="https://smcleod.net" target="_blank">smcleod.net</a> |
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/marked.min.js"></script>
+    <script src="assets/js/highlight.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
