@@ -1,6 +1,5 @@
 import express from 'express';
-// Use our custom proxy middleware
-import { createProxyMiddleware } from 'http-proxy-middleware';
+// No longer using proxy middleware
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,35 +28,80 @@ app.use(cors());
 // Serve static files
 app.use(express.static(path.join(__dirname, '.')));
 
-// Create proxy middleware for Firecrawl API
-const apiProxy = createProxyMiddleware({
-  target: firecrawlApiUrl,
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api': '', // Remove /api prefix when forwarding
-  },
-  // @ts-ignore - logLevel is a valid property in http-proxy-middleware
-  logLevel: loglevel,
-  onProxyReq: (proxyReq, req, res) => {
-    // Log proxy requests
-    console.log(`Proxying ${req.method} ${req.path} to ${firecrawlApiUrl}`);
+// Create a simple proxy handler function
+const proxyHandler = async (req, res) => {
+  try {
+    // Remove /api prefix from the path
+    const targetPath = req.url.replace(/^\/api/, '');
+    const targetUrl = `${firecrawlApiUrl}${targetPath}`;
 
-    // Add API key to request if provided
+    console.log(`Proxying ${req.method} ${req.path} to ${targetUrl}`);
+
+    // Create options for the proxy request
+    const options = {
+      method: req.method,
+      headers: { ...req.headers }
+    };
+
+    // Add API key if provided
     if (firecrawlApiKey) {
-      proxyReq.setHeader('Authorization', `Bearer ${firecrawlApiKey}`);
+      options.headers['Authorization'] = `Bearer ${firecrawlApiKey}`;
     }
-  },
-  onError: (err, req, res) => {
+
+    // Remove host header to avoid conflicts
+    delete options.headers.host;
+
+    // Handle request body for POST/PUT requests
+    let body = null;
+    if (req.method === 'POST' || req.method === 'PUT') {
+      // Parse request body
+      body = await new Promise((resolve) => {
+        const chunks = [];
+        req.on('data', (chunk) => chunks.push(chunk));
+        req.on('end', () => {
+          const bodyData = Buffer.concat(chunks).toString();
+          resolve(bodyData);
+        });
+      });
+
+      // Add body to request options
+      if (body) {
+        options.body = body;
+        // Ensure content-type is set
+        if (!options.headers['content-type']) {
+          options.headers['content-type'] = 'application/json';
+        }
+      }
+    }
+
+    // Use native fetch for proxying
+    const proxyRes = await fetch(targetUrl, options);
+
+    // Copy status and headers
+    res.statusCode = proxyRes.status;
+
+    // Copy headers
+    proxyRes.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+
+    // Get response body
+    const responseBody = await proxyRes.text();
+
+    // Send response
+    res.end(responseBody);
+
+  } catch (err) {
     console.error('Proxy error:', err);
     res.writeHead(500, {
       'Content-Type': 'application/json'
     });
     res.end(JSON.stringify({ error: 'Proxy error', message: err.message }));
   }
-});
+};
 
-// Use the proxy middleware
-app.use('/api', apiProxy);
+// Use the proxy handler for all /api routes
+app.use('/api', proxyHandler);
 
 // Endpoint to get API configuration
 app.get('/config', (req, res) => {
