@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch API configuration on page load
     fetchApiConfig();
 
+    // Set focus to URL input field on page load
+    document.getElementById('url').focus();
+
     // Initialize marked.js
     marked.use({
         renderer: {
@@ -76,6 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Form submission
     submitButton.addEventListener('click', handleSubmit);
+
+    // Add Enter key support for URL input
+    document.getElementById('url').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            handleSubmit();
+        }
+    });
 
     // Functions
 
